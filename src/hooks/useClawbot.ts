@@ -99,8 +99,8 @@ export function useAgentMarkets(agentId: string | null, limit = 8) {
     if (!agentId) return;
     setIsLoading(true);
     clawbotApi
-      .getMarketsForAgent(agentId, limit)
-      .then((d) => setMarkets(d.markets))
+      .getTrendingMarkets(limit)
+      .then((d) => setMarkets(d))
       .catch(() => setMarkets([]))
       .finally(() => setIsLoading(false));
   }, [agentId, limit]);
