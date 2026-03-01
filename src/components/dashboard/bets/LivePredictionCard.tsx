@@ -88,7 +88,7 @@ const LivePredictionCard = ({
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
           {showMarketName && market && (
-            <div className="text-[10px] font-mono text-primary/70 mb-1 line-clamp-1">
+            <div className="text-sm font-display font-semibold text-foreground mb-1">
               {market.question}
             </div>
           )}
