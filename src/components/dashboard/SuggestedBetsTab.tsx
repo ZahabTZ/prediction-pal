@@ -72,37 +72,51 @@ interface BestBet {
   market: LiveMarket;
 }
 
-function pickBestPerAgent(results: PredictionResult[]): BestBet[] {
-  const bestMap = new Map<string, BestBet>();
-  const usedMarkets = new Set<string>();
+/** Position priority: YES/NO > WAIT > NO_EDGE > PASS */
+function positionPriority(pos: string): number {
+  if (pos === "YES" || pos === "NO") return 4;
+  if (pos === "WAIT") return 3;
+  if (pos === "NO_EDGE") return 2;
+  if (pos === "PASS") return 1;
+  return 0;
+}
 
-  // First pass: pick active YES/NO positions, preferring different markets per agent
+function pickBestPerAgent(results: PredictionResult[]): BestBet[] {
+  // Collect ALL non-SKIP candidates per agent
+  const candidates = new Map<string, { prediction: AgentPrediction; market: LiveMarket }[]>();
+
   for (const r of results) {
     for (const p of r.predictions) {
-      if (!isActivePosition(p.position)) continue;
-      const existing = bestMap.get(p.agentId);
-      // Prefer: (1) agent doesn't have a pick yet, (2) higher confidence, (3) different market
-      if (!existing || (p.confidence ?? 0) > (existing.prediction.confidence ?? 0)) {
-        bestMap.set(p.agentId, { prediction: p, market: r.market });
-      }
+      if (p.position === "SKIP" || p.position === "ERROR") continue;
+      const list = candidates.get(p.agentId) ?? [];
+      list.push({ prediction: p, market: r.market });
+      candidates.set(p.agentId, list);
     }
   }
 
-  // Mark used markets
-  for (const bb of bestMap.values()) usedMarkets.add(bb.market.slug);
+  // Sort each agent's candidates: highest priority position, then confidence
+  for (const [, list] of candidates) {
+    list.sort((a, b) => {
+      const priDiff = positionPriority(b.prediction.position) - positionPriority(a.prediction.position);
+      if (priDiff !== 0) return priDiff;
+      return (b.prediction.confidence ?? 0) - (a.prediction.confidence ?? 0);
+    });
+  }
 
-  // Second pass: fill in agents with no active bet using WAIT/NO_EDGE/PASS positions
-  // Pick from markets not yet used when possible
-  for (const r of results) {
-    for (const p of r.predictions) {
-      if (bestMap.has(p.agentId)) continue;
-      if (p.position === "SKIP" || p.position === "ERROR") continue;
-      const existing = bestMap.get(p.agentId);
-      const preferUnused = !usedMarkets.has(r.market.slug);
-      if (!existing || preferUnused) {
-        bestMap.set(p.agentId, { prediction: p, market: r.market });
-        usedMarkets.add(r.market.slug);
-      }
+  // Greedily assign: most-constrained agents first, prefer unused markets
+  const bestMap = new Map<string, BestBet>();
+  const usedMarkets = new Set<string>();
+  const agentIds = Array.from(candidates.keys()).sort(
+    (a, b) => (candidates.get(a)?.length ?? 0) - (candidates.get(b)?.length ?? 0)
+  );
+
+  for (const agentId of agentIds) {
+    const list = candidates.get(agentId) ?? [];
+    const unusedPick = list.find((c) => !usedMarkets.has(c.market.slug));
+    const pick = unusedPick ?? list[0];
+    if (pick) {
+      bestMap.set(agentId, pick);
+      usedMarkets.add(pick.market.slug);
     }
   }
 
