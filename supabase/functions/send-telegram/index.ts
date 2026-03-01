@@ -30,20 +30,21 @@ serve(async (req) => {
 
     const sizeLabel = size || prediction.suggestedSize || "small";
 
+    const h = escapeHtml;
     const message =
-      `🤖 *CLAWBOT BET APPROVED*\n\n` +
-      `📊 *Market:* ${escapeMarkdown(market.question)}\n` +
-      `🎯 *Position:* ${prediction.position}\n` +
-      `💪 *Confidence:* ${confidence}\n` +
-      `💰 *Size:* ${sizeLabel}\n` +
-      `🏷️ *Agent:* ${prediction.agentEmoji || ""} ${escapeMarkdown(prediction.agentName)}\n` +
-      `📈 *YES Price:* ${(market.yesPrice * 100).toFixed(1)}¢\n` +
-      `📉 *NO Price:* ${(market.noPrice * 100).toFixed(1)}¢\n` +
-      `💧 *Liquidity:* $${Number(market.liquidity).toLocaleString()}\n` +
-      `🔗 *Slug:* \`${escapeMarkdown(market.slug)}\`\n\n` +
-      (prediction.thesis ? `💡 *Thesis:* ${escapeMarkdown(prediction.thesis)}\n` : "") +
-      (prediction.warning ? `⚠️ *Warning:* ${escapeMarkdown(prediction.warning)}\n` : "") +
-      `\n_Place this bet on Polymarket now\\!_`;
+      `🤖 <b>CLAWBOT BET APPROVED</b>\n\n` +
+      `📊 <b>Market:</b> ${h(market.question)}\n` +
+      `🎯 <b>Position:</b> ${prediction.position}\n` +
+      `💪 <b>Confidence:</b> ${confidence}\n` +
+      `💰 <b>Size:</b> ${sizeLabel}\n` +
+      `🏷️ <b>Agent:</b> ${prediction.agentEmoji || ""} ${h(prediction.agentName)}\n` +
+      `📈 <b>YES Price:</b> ${(market.yesPrice * 100).toFixed(1)}¢\n` +
+      `📉 <b>NO Price:</b> ${(market.noPrice * 100).toFixed(1)}¢\n` +
+      `💧 <b>Liquidity:</b> $${Number(market.liquidity).toLocaleString()}\n` +
+      `🔗 <b>Slug:</b> <code>${h(market.slug)}</code>\n\n` +
+      (prediction.thesis ? `💡 <b>Thesis:</b> ${h(prediction.thesis)}\n` : "") +
+      (prediction.warning ? `⚠️ <b>Warning:</b> ${h(prediction.warning)}\n` : "") +
+      `\n<i>Place this bet on Polymarket now!</i>`;
 
     const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
     const res = await fetch(telegramUrl, {
@@ -52,7 +53,7 @@ serve(async (req) => {
       body: JSON.stringify({
         chat_id: TELEGRAM_CHAT_ID,
         text: message,
-        parse_mode: "MarkdownV2",
+        parse_mode: "HTML",
       }),
     });
 
@@ -79,6 +80,9 @@ serve(async (req) => {
   }
 });
 
-function escapeMarkdown(text: string): string {
-  return text.replace(/([_*\[\]()~`>#+\-=|{}.!\\])/g, "\\$1");
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
