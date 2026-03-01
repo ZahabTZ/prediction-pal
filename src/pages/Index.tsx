@@ -33,7 +33,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header autonomy={autonomy} onAutonomyChange={setAutonomy} />
+      <Header autonomy={autonomy} onAutonomyChange={setAutonomy} onOpenOnboarding={() => setOnboarded(false)} />
 
       {/* Tab navigation */}
       <div className="border-b border-border bg-background/50 backdrop-blur-sm sticky top-14 z-30">
