@@ -183,7 +183,7 @@ const SuggestedBetsTab = () => {
           const agentData = AGENTS.find((a) => a.id === frontendId);
           return (
             <LivePredictionCard
-              key={db.prediction.agentId}
+              key={db.market.id}
               prediction={db.prediction}
               agentData={agentData}
               index={i}
