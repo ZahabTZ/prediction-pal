@@ -1,73 +1,65 @@
-# Welcome to your Lovable project
+# prediction-pal · CLAWBOT
 
-## Project info
+AI-powered prediction market agents with live Polymarket data.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Agents
 
-## How can I edit this code?
+| Agent | Style | WR | Risk |
+|---|---|---|---|
+| 🔄 THE CONTRARIAN | Fades the crowd on high-confidence markets | 62% | Medium |
+| ⚡ THE MOMENTUM RIDER | Rides price + volume momentum | 58% | High |
+| 📊 THE FUNDAMENTALIST | Base rates + calibrated Bayesian reasoning | 74% | Low |
+| 🎯 THE SCALPER | Finds 5–15% mispricings in liquid short-dated markets | 55% | Medium |
+| 🚀 THE DEGENERATE | Long-shot hunter, <20% markets only | 48% | Extreme |
 
-There are several ways of editing your application.
+Each agent has its own **market filter** (they don't all look at the same markets), **different data inputs**, and **differentiated output schemas**. The Fundamentalist caps confidence at 75%; the Degenerate swings 25–80%. Agents can SKIP/PASS/WAIT/NO_EDGE rather than being forced to take a position.
 
-**Use Lovable**
+## Setup
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+```bash
+npm install
 
-Changes made via Lovable will be committed automatically to this repo.
+# Copy env and add your API URL
+cp .env.example .env
+```
 
-**Use your preferred IDE**
+Add to `.env`:
+```
+VITE_CLAWBOT_API_URL=https://app.coral.inc/api/apps/d21b5002-eb5a-4792-bb0d-6c43610fa7f8
+```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Architecture
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```
+Lovable Frontend (React/Vite/Tailwind)
+    │
+    │  REST API
+    ▼
+CLAWBOT Backend (Node/Express on Coral)
+    │
+    ├── Polymarket Gamma API  ← live markets, prices, volume
+    ├── Polymarket CLOB API   ← price history, momentum data
+    │
+    └── 5 AI Agents (Claude Haiku via Coral proxy)
+          Each with unique market filters + data + output schema
+```
 
-**Use GitHub Codespaces**
+## API Endpoints
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+| Endpoint | Description |
+|---|---|
+| `GET /api/markets/trending` | Top markets by 24h volume |
+| `GET /api/markets?search=...` | Search live markets |
+| `GET /api/markets/for/:agentId` | Markets filtered for a specific agent |
+| `POST /api/predict` `{ marketSlug }` | Run all 5 agents |
+| `POST /api/predict` `{ marketSlug, agentId }` | Run one agent |
 
-## What technologies are used for this project?
+## Stack
 
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- **Frontend**: React · TypeScript · Vite · Tailwind · shadcn/ui · Framer Motion
+- **Backend**: Node.js · Express · Polymarket REST APIs · Claude Haiku
+- **Hosting**: Lovable (frontend) · Coral/OpenClaw (backend)
