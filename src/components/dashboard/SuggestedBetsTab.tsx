@@ -17,6 +17,7 @@ import {
 import { useTrendingMarkets, useMarketSearch, fmtPct, fmtDollars } from "@/hooks/useClawbot";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { predictionLoopApi } from "@/lib/predictionLoopApi";
 
 // ─── Agent pill (unchanged design) ──────────────────────────────────────────
 
@@ -146,14 +147,40 @@ const LivePredictionCard = ({
     if (!market) return;
     setIsSending(true);
     try {
+      // JUDGE + COMPARE: Claude evaluates independently
+      const loopResult = await predictionLoopApi.judge({
+        marketSlug: market.slug,
+        marketQuestion: market.question,
+        marketCategory: market.category,
+        currentYesPrice: market.yesPrice,
+        agentId: prediction.agentId,
+        agentName: prediction.agentName,
+      });
+
+      if (!loopResult.shouldBet) {
+        toast.info(`Judge says NO edge (Claude: ${(loopResult.judgment.probability * 100).toFixed(0)}% vs Market: ${(market.yesPrice * 100).toFixed(0)}%). Bet saved but rejected.`);
+        return;
+      }
+
+      // Edge found — send to Telegram
       const { data, error } = await supabase.functions.invoke("send-telegram", {
-        body: { market, prediction, size: prediction.suggestedSize || "small" },
+        body: {
+          market,
+          prediction: {
+            ...prediction,
+            position: loopResult.comparison.position,
+            suggestedSize: loopResult.comparison.suggestedSize,
+            thesis: `JUDGE: ${loopResult.judgment.reasoning} (Claude: ${(loopResult.judgment.probability * 100).toFixed(0)}% vs Market: ${(market.yesPrice * 100).toFixed(0)}%, Edge: ${(loopResult.comparison.edge * 100).toFixed(1)}pp)`,
+          },
+          size: loopResult.comparison.suggestedSize,
+        },
       });
       if (error) throw error;
-      toast.success("Bet sent to Telegram bot! 🚀");
+
+      toast.success(`Bet approved! Edge: ${(loopResult.comparison.absEdge * 100).toFixed(1)}pp → Sent to Telegram 🚀`);
     } catch (e) {
-      console.error("Telegram send failed:", e);
-      toast.error("Failed to send bet to Telegram");
+      console.error("Bet flow failed:", e);
+      toast.error("Failed to process bet");
     } finally {
       setIsSending(false);
     }
