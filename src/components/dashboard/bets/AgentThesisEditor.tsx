@@ -1,52 +1,70 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AGENTS } from "@/data/mockData";
-import { Settings2 } from "lucide-react";
+import { Settings } from "lucide-react";
 
 interface AgentThesisEditorProps {
   theses: Record<string, string>;
   onUpdate: (agentId: string, thesis: string) => void;
 }
 
+const agentColorMap: Record<string, string> = {
+  contrarian: "border-agent-contrarian/40",
+  momentum: "border-agent-momentum/40",
+  fundamentalist: "border-agent-fundamentalist/40",
+  scalper: "border-agent-scalper/40",
+  degen: "border-agent-degen/40",
+};
+
 const AgentThesisEditor = ({ theses, onUpdate }: AgentThesisEditorProps) => {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [draft, setDraft] = useState("");
+  const [draftPhilosophy, setDraftPhilosophy] = useState("");
+  const [draftRisk, setDraftRisk] = useState("");
+  const [draftNiches, setDraftNiches] = useState("");
 
   const startEdit = (agentId: string) => {
+    const agent = AGENTS.find((a) => a.id === agentId);
     setEditingId(agentId);
-    setDraft(theses[agentId] ?? "");
+    setDraftPhilosophy(theses[agentId] ?? agent?.philosophy ?? "");
+    setDraftRisk(agent?.riskLabel ?? "");
+    setDraftNiches(agent?.niches?.join(", ") ?? "");
   };
 
   const save = () => {
-    if (editingId && draft.trim()) {
-      onUpdate(editingId, draft.trim());
+    if (editingId && draftPhilosophy.trim()) {
+      onUpdate(editingId, draftPhilosophy.trim());
     }
     setEditingId(null);
-    setDraft("");
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <button
-          className="p-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors shrink-0"
-          title="Edit agent theses"
+          className="p-1.5 rounded-md hover:bg-muted transition-colors shrink-0"
+          title="Edit agent personalities"
         >
-          <Settings2 className="w-4 h-4 text-muted-foreground" />
+          <Settings className="w-3.5 h-3.5 text-muted-foreground" />
         </button>
       </DialogTrigger>
       <DialogContent className="max-w-lg bg-card border-border">
         <DialogHeader>
-          <DialogTitle className="font-display text-sm">Agent Theses</DialogTitle>
+          <DialogTitle className="font-display text-sm">Agent Personalities</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
           {AGENTS.map((agent) => (
-            <div key={agent.id} className="rounded-lg border border-border p-3 space-y-2">
+            <div
+              key={agent.id}
+              className={`rounded-lg border ${agentColorMap[agent.colorKey] ?? "border-border"} p-3 space-y-2`}
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">{agent.icon}</span>
-                  <span className="text-xs font-display font-semibold">{agent.name}</span>
+                  <div>
+                    <span className="text-xs font-display font-semibold">{agent.name}</span>
+                    <span className="ml-2 text-[10px] font-mono text-muted-foreground">{agent.riskLabel}</span>
+                  </div>
                 </div>
                 {editingId !== agent.id && (
                   <button
@@ -57,15 +75,40 @@ const AgentThesisEditor = ({ theses, onUpdate }: AgentThesisEditorProps) => {
                   </button>
                 )}
               </div>
+
               {editingId === agent.id ? (
-                <div className="space-y-2">
-                  <textarea
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
-                    rows={3}
-                    placeholder="Describe this agent's betting philosophy..."
-                  />
+                <div className="space-y-3">
+                  {/* Risk Label */}
+                  <div>
+                    <label className="text-[10px] font-mono text-muted-foreground uppercase block mb-1">Risk Profile</label>
+                    <input
+                      value={draftRisk}
+                      onChange={(e) => setDraftRisk(e.target.value)}
+                      className="w-full bg-muted border border-border rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary transition-colors"
+                      placeholder="e.g. Medium-High Risk"
+                    />
+                  </div>
+                  {/* Philosophy */}
+                  <div>
+                    <label className="text-[10px] font-mono text-muted-foreground uppercase block mb-1">Philosophy</label>
+                    <textarea
+                      value={draftPhilosophy}
+                      onChange={(e) => setDraftPhilosophy(e.target.value)}
+                      className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
+                      rows={3}
+                      placeholder="Describe this agent's betting philosophy..."
+                    />
+                  </div>
+                  {/* Niches */}
+                  <div>
+                    <label className="text-[10px] font-mono text-muted-foreground uppercase block mb-1">Focus Areas</label>
+                    <input
+                      value={draftNiches}
+                      onChange={(e) => setDraftNiches(e.target.value)}
+                      className="w-full bg-muted border border-border rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary transition-colors"
+                      placeholder="e.g. Crypto, Macro, Politics"
+                    />
+                  </div>
                   <div className="flex gap-2 justify-end">
                     <button
                       onClick={() => setEditingId(null)}
@@ -82,9 +125,18 @@ const AgentThesisEditor = ({ theses, onUpdate }: AgentThesisEditorProps) => {
                   </div>
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {theses[agent.id] || agent.philosophy}
-                </p>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {theses[agent.id] || agent.philosophy}
+                  </p>
+                  <div className="flex gap-1 flex-wrap pt-1">
+                    {agent.niches.map((n) => (
+                      <span key={n} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                        {n}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           ))}
