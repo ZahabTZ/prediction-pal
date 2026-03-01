@@ -57,13 +57,14 @@ function buildReportData(placedBets: PlacedBet[]) {
   }, 0);
   const allWins = liveBets.filter((b) => b.edge > 3).length;
   const winRate = liveBets.length > 0 ? Math.round((allWins / liveBets.length) * 100) : 0;
-  const totalStake = liveBets.reduce((s, b) => s + b.stake, 0);
-  const roi = totalStake > 0 ? ((totalPnl / totalStake) * 100).toFixed(1) : "0";
-  const avgEdge = liveBets.length > 0
-    ? (liveBets.reduce((s, b) => s + b.edge, 0) / liveBets.length).toFixed(1)
-    : "0";
 
-  return { agentStats, weeklyData, liveBets, totalPnl: Math.round(totalPnl), winRate, roi, avgEdge };
+  // Best agent by win rate (with at least 1 bet)
+  const activeAgents = agentStats.filter((a) => a.liveBetsCount > 0);
+  const bestAgent = activeAgents.length > 0
+    ? activeAgents.reduce((best, a) => (a.winRate > best.winRate ? a : best))
+    : null;
+
+  return { agentStats, weeklyData, liveBets, totalBets: liveBets.length, totalWins: allWins, winRate, bestAgent };
 }
 
 const ReportsTab = () => {
@@ -88,10 +89,10 @@ const ReportsTab = () => {
       {/* Top metrics */}
       <div className="grid grid-cols-4 gap-2">
         {[
-          { label: "Win Rate", value: `${report.winRate}%` },
-          { label: "Total P&L", value: `$${report.totalPnl > 0 ? "+" : ""}${report.totalPnl.toLocaleString()}` },
-          { label: "ROI", value: `${report.roi}%` },
-          { label: "Avg Edge", value: `${report.avgEdge}pp` },
+          { label: "Bets Made", value: `${report.totalBets}` },
+          { label: "Bets Won", value: `${report.totalWins}` },
+          { label: "Win %", value: `${report.winRate}%` },
+          { label: "Best Agent", value: report.bestAgent ? `${report.bestAgent.icon}` : "—" },
         ].map((stat) => (
           <div key={stat.label} className="p-3 rounded-lg bg-card border border-border text-center">
             <div className="text-[10px] font-mono text-muted-foreground uppercase">{stat.label}</div>
