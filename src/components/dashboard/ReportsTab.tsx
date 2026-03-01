@@ -100,35 +100,6 @@ const ReportsTab = () => {
         ))}
       </div>
 
-      {/* P&L Chart */}
-      {report.weeklyData.length > 0 && (
-        <div className="rounded-lg bg-card border border-border p-4">
-          <h3 className="font-display font-semibold text-sm mb-4">P&L by Day</h3>
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={report.weeklyData}>
-                <XAxis dataKey="week" tick={{ fontSize: 10, fill: "hsl(0,0%,50%)" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "hsl(0,0%,50%)" }} axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    background: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px",
-                    fontSize: "12px",
-                    fontFamily: "JetBrains Mono",
-                  }}
-                  labelStyle={{ color: "hsl(var(--foreground))" }}
-                />
-                <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
-                  {report.weeklyData.map((entry, index) => (
-                    <Cell key={index} fill={entry.pnl >= 0 ? "hsl(155,100%,45%)" : "hsl(0,72%,51%)"} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
 
       {/* Agent comparison table */}
       <div className="rounded-lg bg-card border border-border overflow-hidden">
