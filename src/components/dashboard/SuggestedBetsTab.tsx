@@ -299,40 +299,11 @@ const SkeletonCard = ({ index }: { index: number }) => (
   </motion.div>
 );
 
-// ─── Consensus banner ─────────────────────────────────────────────────────────
-
-const ConsensusBanner = ({ result }: { result: PredictionResult }) => {
-  const { consensus, market } = result;
-  if (consensus.position === "NO_CONSENSUS") return null;
-
-  const isYes = consensus.position === "YES";
-  return (
-    <div className={`rounded-lg border p-3 flex items-center justify-between ${
-      isYes ? "bg-confidence-high/10 border-confidence-high/30" : "bg-destructive/10 border-destructive/30"
-    }`}>
-      <div>
-        <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Agent Consensus</div>
-        <div className={`text-lg font-black font-mono ${isYes ? "text-confidence-high" : "text-destructive"}`}>
-          {consensus.position}
-        </div>
-      </div>
-      <div className="text-right">
-        <div className="text-[10px] font-mono text-muted-foreground">{consensus.split} vote · {consensus.abstentions} abstained</div>
-        <div className="text-sm font-mono font-bold">{Math.round(consensus.avgConfidence * 100)}% avg conf</div>
-      </div>
-      <div className="text-right">
-        <div className="text-[10px] font-mono text-muted-foreground">Market</div>
-        <div className="text-sm font-mono font-bold">{(market.yesPrice * 100).toFixed(0)}¢ YES</div>
-      </div>
-    </div>
-  );
-};
 
 // ─── Main tab ─────────────────────────────────────────────────────────────────
 
 const SuggestedBetsTab = () => {
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
-  const [subTab, setSubTab] = useState<"all" | "agent" | "compare">("all");
   const [selectedMarket, setSelectedMarket] = useState<LiveMarket | null>(null);
   const [result, setResult] = useState<PredictionResult | null>(null);
   const [isLoadingPrediction, setIsLoadingPrediction] = useState(false);
@@ -373,14 +344,12 @@ const SuggestedBetsTab = () => {
 
   // Filter predictions by selected agent
   const predictions = result?.predictions ?? [];
-  const visiblePredictions =
-    selectedAgent && subTab === "agent"
-      ? predictions.filter((p) => {
-          // Map frontend agent id → backend agent id
-          const backendId = selectedAgent === "degen" ? "degenerate" : selectedAgent;
-          return p.agentId === backendId;
-        })
-      : predictions;
+  const visiblePredictions = selectedAgent
+    ? predictions.filter((p) => {
+        const backendId = selectedAgent === "degen" ? "degenerate" : selectedAgent;
+        return p.agentId === backendId;
+      })
+    : predictions;
 
   return (
     <div className="space-y-4">
@@ -451,15 +420,13 @@ const SuggestedBetsTab = () => {
             selected={selectedAgent === agent.id}
             onClick={() => {
               setSelectedAgent(selectedAgent === agent.id ? null : agent.id);
-              if (selectedAgent !== agent.id) setSubTab("agent");
-              else setSubTab("all");
             }}
           />
         ))}
       </div>
 
       {/* Performance strip */}
-      {activeAgent && subTab === "agent" && (
+      {activeAgent && (
         <div className="grid grid-cols-4 gap-2">
           {[
             { label: "Win Rate", value: `${activeAgent.winRate}%` },
@@ -475,34 +442,6 @@ const SuggestedBetsTab = () => {
         </div>
       )}
 
-      {/* Sub-tabs */}
-      <div className="flex gap-1 border-b border-border">
-        {[
-          { key: "all" as const, label: "All Agents" },
-          { key: "agent" as const, label: "By Agent" },
-          { key: "compare" as const, label: "Compare" },
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setSubTab(tab.key)}
-            className={`px-3 py-2 text-xs font-display font-medium transition-colors border-b-2 ${
-              subTab === tab.key
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab.key === "all" && result && (
-              <span className="mr-1 px-1.5 py-0.5 rounded-full bg-primary/20 text-primary text-[10px] font-mono">
-                {predictions.filter(p => p.position === "YES" || p.position === "NO").length}
-              </span>
-            )}
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Consensus banner */}
-      {result && !isLoadingPrediction && <ConsensusBanner result={result} />}
 
       {/* Loading state */}
       {isLoadingPrediction && (
@@ -512,13 +451,8 @@ const SuggestedBetsTab = () => {
         </div>
       )}
 
-      {/* Compare tab */}
-      {subTab === "compare" && result && !isLoadingPrediction && (
-        <CompareView predictions={predictions} market={result.market} />
-      )}
-
       {/* Prediction cards */}
-      {subTab !== "compare" && (
+      {!isLoadingPrediction && (
         <div className="space-y-3">
           {isLoadingPrediction
             ? Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} index={i} />)
@@ -549,56 +483,5 @@ const SuggestedBetsTab = () => {
   );
 };
 
-// ─── Compare view ─────────────────────────────────────────────────────────────
-
-const CompareView = ({
-  predictions,
-  market,
-}: {
-  predictions: AgentPrediction[];
-  market: LiveMarket;
-}) => {
-  return (
-    <div className="space-y-2">
-      <div className="rounded-lg bg-card border border-border p-3">
-        <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">
-          Market · {(market.yesPrice * 100).toFixed(0)}% YES · {fmtDollars(market.volume24h)} 24h vol
-        </div>
-        <div className="space-y-2">
-          {predictions.map((p) => {
-            const frontendId = p.agentId === "degenerate" ? "degen" : p.agentId;
-            const agentData = AGENTS.find((a) => a.id === frontendId);
-            const icon = agentData?.icon ?? AGENT_ICON_MAP[p.agentId] ?? "🤖";
-            const active = isActivePosition(p.position);
-            const confPct = p.confidence ? Math.round(p.confidence * 100) : null;
-
-            return (
-              <div key={p.agentId} className="flex items-center gap-3">
-                <span className="text-base w-6">{icon}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <span className="text-xs font-display font-semibold truncate">{p.agentName}</span>
-                    <span className={`text-xs font-mono font-bold ml-2 shrink-0 ${
-                      p.position === "YES" ? "text-confidence-high" :
-                      p.position === "NO" ? "text-destructive" :
-                      "text-muted-foreground"
-                    }`}>{p.position}</span>
-                  </div>
-                  {active && confPct !== null ? (
-                    <ConfidenceBar value={confPct} />
-                  ) : (
-                    <div className="text-[10px] text-muted-foreground">
-                      {p.skipReason ?? p.passReason ?? "Abstaining"}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-};
 
 export default SuggestedBetsTab;
