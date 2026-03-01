@@ -15,6 +15,8 @@ import {
   AGENT_ICON_MAP,
 } from "@/lib/clawbotApi";
 import { useTrendingMarkets, useMarketSearch, fmtPct, fmtDollars } from "@/hooks/useClawbot";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 // ─── Agent pill (unchanged design) ──────────────────────────────────────────
 
@@ -125,17 +127,37 @@ const LivePredictionCard = ({
   prediction,
   agentData,
   index,
+  market,
 }: {
   prediction: AgentPrediction;
   agentData: Agent | undefined;
   index: number;
+  market: LiveMarket | null;
 }) => {
+  const [isSending, setIsSending] = useState(false);
   const active = isActivePosition(prediction.position);
   const reasoning = getPrimaryReasoning(prediction);
   const detail = getAgentDetail(prediction);
   const colorKey = AGENT_COLOR_MAP[prediction.agentId] ?? "contrarian";
   const icon = agentData?.icon ?? AGENT_ICON_MAP[prediction.agentId] ?? "🤖";
   const confPct = prediction.confidence ? Math.round(prediction.confidence * 100) : null;
+
+  const handleBet = async () => {
+    if (!market) return;
+    setIsSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-telegram", {
+        body: { market, prediction, size: prediction.suggestedSize || "small" },
+      });
+      if (error) throw error;
+      toast.success("Bet sent to Telegram bot! 🚀");
+    } catch (e) {
+      console.error("Telegram send failed:", e);
+      toast.error("Failed to send bet to Telegram");
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   return (
     <motion.div
@@ -215,8 +237,12 @@ const LivePredictionCard = ({
           <button className="flex-1 py-2 rounded-md bg-muted text-muted-foreground text-xs font-display font-semibold hover:bg-muted/80 transition-colors">
             PASS
           </button>
-          <button className="flex-1 py-2 rounded-md bg-primary text-primary-foreground text-xs font-display font-semibold hover:brightness-110 transition-all glow-primary">
-            BET
+          <button
+            onClick={handleBet}
+            disabled={isSending}
+            className="flex-1 py-2 rounded-md bg-primary text-primary-foreground text-xs font-display font-semibold hover:brightness-110 transition-all glow-primary disabled:opacity-50"
+          >
+            {isSending ? "SENDING..." : "BET"}
           </button>
         </div>
       )}
@@ -486,6 +512,7 @@ const SuggestedBetsTab = () => {
                     prediction={p}
                     agentData={agentData}
                     index={i}
+                    market={selectedMarket}
                   />
                 );
               })}
