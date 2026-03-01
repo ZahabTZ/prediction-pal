@@ -14,7 +14,99 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bets: {
+        Row: {
+          agent_id: string | null
+          agent_name: string | null
+          claude_probability: number
+          claude_reasoning: string
+          created_at: string
+          edge: number | null
+          id: string
+          learnings_applied: string | null
+          market_category: string | null
+          market_probability: number
+          market_question: string
+          market_slug: string
+          outcome: string | null
+          pnl: number | null
+          position: string
+          resolved_at: string | null
+          status: string
+          suggested_size: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          agent_name?: string | null
+          claude_probability: number
+          claude_reasoning: string
+          created_at?: string
+          edge?: number | null
+          id?: string
+          learnings_applied?: string | null
+          market_category?: string | null
+          market_probability: number
+          market_question: string
+          market_slug: string
+          outcome?: string | null
+          pnl?: number | null
+          position: string
+          resolved_at?: string | null
+          status?: string
+          suggested_size?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          agent_name?: string | null
+          claude_probability?: number
+          claude_reasoning?: string
+          created_at?: string
+          edge?: number | null
+          id?: string
+          learnings_applied?: string | null
+          market_category?: string | null
+          market_probability?: number
+          market_question?: string
+          market_slug?: string
+          outcome?: string | null
+          pnl?: number | null
+          position?: string
+          resolved_at?: string | null
+          status?: string
+          suggested_size?: string | null
+        }
+        Relationships: []
+      }
+      learnings: {
+        Row: {
+          active: boolean
+          bets_analyzed: number
+          created_at: string
+          id: string
+          instruction: string
+          reflection: string
+          win_rate: number | null
+        }
+        Insert: {
+          active?: boolean
+          bets_analyzed: number
+          created_at?: string
+          id?: string
+          instruction: string
+          reflection: string
+          win_rate?: number | null
+        }
+        Update: {
+          active?: boolean
+          bets_analyzed?: number
+          created_at?: string
+          id?: string
+          instruction?: string
+          reflection?: string
+          win_rate?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
