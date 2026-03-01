@@ -112,6 +112,7 @@ function pickBestPerAgent(results: PredictionResult[]): BestBet[] {
 // ─── Main tab ─────────────────────────────────────────────────────────────────
 
 const SuggestedBetsTab = () => {
+  const { bets: placedBets, placeBet, clearBets } = usePlacedBets();
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [selectedMarket, setSelectedMarket] = useState<LiveMarket | null>(null);
   const [singleResult, setSingleResult] = useState<PredictionResult | null>(null);
@@ -344,6 +345,7 @@ const SuggestedBetsTab = () => {
                   index={i}
                   market={bb.market}
                   showMarketName
+                  onBetPlaced={(m, p) => placeBet(m, p)}
                 />
               );
             })
@@ -371,10 +373,32 @@ const SuggestedBetsTab = () => {
                   agentData={agentData}
                   index={i}
                   market={selectedMarket}
+                  onBetPlaced={(m, pred) => placeBet(m, pred)}
                 />
               );
             })
           )}
+        </div>
+      )}
+
+      {/* ── PLACED BETS ── */}
+      {placedBets.length > 0 && (
+        <div className="space-y-3 pt-2 border-t border-border">
+          <div className="flex items-center justify-between">
+            <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
+              Placed Bets ({placedBets.length})
+            </div>
+            <button
+              onClick={clearBets}
+              className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground hover:text-destructive transition-colors"
+            >
+              <Trash2 className="w-3 h-3" />
+              Clear
+            </button>
+          </div>
+          {placedBets.map((bet, i) => (
+            <PlacedBetCard key={bet.id} bet={bet} index={i} />
+          ))}
         </div>
       )}
     </div>
