@@ -13,7 +13,6 @@ import {
 } from "@/lib/clawbotApi";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { predictionLoopApi } from "@/lib/predictionLoopApi";
 
 const ConfidenceBar = ({ value }: { value: number }) => {
   const color = value >= 75 ? "bg-confidence-high" : value >= 50 ? "bg-confidence-mid" : "bg-confidence-low";
@@ -33,14 +32,17 @@ const LivePredictionCard = ({
   index,
   market,
   showMarketName = false,
+  onBetPlaced,
 }: {
   prediction: AgentPrediction;
   agentData: Agent | undefined;
   index: number;
   market: LiveMarket | null;
   showMarketName?: boolean;
+  onBetPlaced?: (market: LiveMarket, prediction: AgentPrediction) => void;
 }) => {
   const [isSending, setIsSending] = useState(false);
+  const [betPlaced, setBetPlaced] = useState(false);
   const active = isActivePosition(prediction.position);
   const reasoning = getPrimaryReasoning(prediction);
   const detail = getAgentDetail(prediction);
@@ -51,38 +53,26 @@ const LivePredictionCard = ({
     if (!market) return;
     setIsSending(true);
     try {
-      const loopResult = await predictionLoopApi.judge({
-        marketSlug: market.slug,
-        marketQuestion: market.question,
-        marketCategory: market.category,
-        currentYesPrice: market.yesPrice,
-        agentId: prediction.agentId,
-        agentName: prediction.agentName,
-      });
-
-      if (!loopResult.shouldBet) {
-        toast.info(`Judge says NO edge (Claude: ${(loopResult.judgment.probability * 100).toFixed(0)}% vs Market: ${(market.yesPrice * 100).toFixed(0)}%). Bet saved but rejected.`);
-        return;
-      }
-
-      const { data, error } = await supabase.functions.invoke("send-telegram", {
+      // Send directly to Telegram
+      const { error } = await supabase.functions.invoke("send-telegram", {
         body: {
           market,
-          prediction: {
-            ...prediction,
-            position: loopResult.comparison.position,
-            suggestedSize: loopResult.comparison.suggestedSize,
-            thesis: `JUDGE: ${loopResult.judgment.reasoning} (Claude: ${(loopResult.judgment.probability * 100).toFixed(0)}% vs Market: ${(market.yesPrice * 100).toFixed(0)}%, Edge: ${(loopResult.comparison.edge * 100).toFixed(1)}pp)`,
-          },
-          size: loopResult.comparison.suggestedSize,
+          prediction,
+          size: prediction.suggestedSize ?? "small",
         },
       });
       if (error) throw error;
 
-      toast.success(`Bet approved! Edge: ${(loopResult.comparison.absEdge * 100).toFixed(1)}pp → Sent to Telegram 🚀`);
+      setBetPlaced(true);
+      onBetPlaced?.(market, prediction);
+
+      const edge = prediction.edge !== undefined
+        ? `${Math.abs(prediction.edge * 100).toFixed(1)}pp`
+        : `${confPct ?? 0}%`;
+      toast.success(`Bet placed! ${prediction.position} @ ${edge} edge → Sent to Telegram 🚀`);
     } catch (e) {
       console.error("Bet flow failed:", e);
-      toast.error("Failed to process bet");
+      toast.error("Failed to send bet");
     } finally {
       setIsSending(false);
     }
@@ -156,7 +146,7 @@ const LivePredictionCard = ({
         <p className="text-[10px] text-amber-500/80">⚠ {prediction.warning}</p>
       )}
 
-      {active && (
+      {active && !betPlaced && (
         <div className="flex gap-2 pt-1">
           <button className="flex-1 py-2 rounded-md bg-muted text-muted-foreground text-xs font-display font-semibold hover:bg-muted/80 transition-colors">
             PASS
@@ -168,6 +158,11 @@ const LivePredictionCard = ({
           >
             {isSending ? "SENDING..." : "BET"}
           </button>
+        </div>
+      )}
+      {betPlaced && (
+        <div className="flex items-center justify-center gap-2 py-2 rounded-md bg-primary/10 border border-primary/20 text-primary text-xs font-display font-semibold">
+          ✓ BET PLACED — SENT TO TELEGRAM
         </div>
       )}
     </motion.div>

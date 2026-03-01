@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { RefreshCw, Loader2, Wifi, WifiOff } from "lucide-react";
+import { RefreshCw, Loader2, Wifi, WifiOff, Trash2 } from "lucide-react";
 import { AGENTS } from "@/data/mockData";
 import type { Agent } from "@/data/mockData";
 import {
@@ -13,6 +13,8 @@ import {
 import AgentThesisEditor from "./bets/AgentThesisEditor";
 import MarketSelector from "./bets/MarketSelector";
 import LivePredictionCard from "./bets/LivePredictionCard";
+import PlacedBetCard from "./bets/PlacedBetCard";
+import { usePlacedBets } from "@/hooks/usePlacedBets";
 
 // ─── Agent pill ──────────────────────────────────────────────────────────────
 
@@ -72,13 +74,34 @@ interface BestBet {
 
 function pickBestPerAgent(results: PredictionResult[]): BestBet[] {
   const bestMap = new Map<string, BestBet>();
+  const usedMarkets = new Set<string>();
 
+  // First pass: pick active YES/NO positions, preferring different markets per agent
   for (const r of results) {
     for (const p of r.predictions) {
       if (!isActivePosition(p.position)) continue;
       const existing = bestMap.get(p.agentId);
+      // Prefer: (1) agent doesn't have a pick yet, (2) higher confidence, (3) different market
       if (!existing || (p.confidence ?? 0) > (existing.prediction.confidence ?? 0)) {
         bestMap.set(p.agentId, { prediction: p, market: r.market });
+      }
+    }
+  }
+
+  // Mark used markets
+  for (const bb of bestMap.values()) usedMarkets.add(bb.market.slug);
+
+  // Second pass: fill in agents with no active bet using WAIT/NO_EDGE/PASS positions
+  // Pick from markets not yet used when possible
+  for (const r of results) {
+    for (const p of r.predictions) {
+      if (bestMap.has(p.agentId)) continue;
+      if (p.position === "SKIP" || p.position === "ERROR") continue;
+      const existing = bestMap.get(p.agentId);
+      const preferUnused = !usedMarkets.has(r.market.slug);
+      if (!existing || preferUnused) {
+        bestMap.set(p.agentId, { prediction: p, market: r.market });
+        usedMarkets.add(r.market.slug);
       }
     }
   }
