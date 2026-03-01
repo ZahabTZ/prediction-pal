@@ -1,17 +1,10 @@
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { RefreshCw, Loader2, Wifi, WifiOff, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { Trash2 } from "lucide-react";
 import { AGENTS } from "@/data/mockData";
 import type { Agent } from "@/data/mockData";
-import {
-  clawbotApi,
-  LiveMarket,
-  AgentPrediction,
-  PredictionResult,
-  isActivePosition,
-} from "@/lib/clawbotApi";
+import { LiveMarket, AgentPrediction } from "@/lib/clawbotApi";
 import AgentThesisEditor from "./bets/AgentThesisEditor";
-import MarketSelector from "./bets/MarketSelector";
 import LivePredictionCard from "./bets/LivePredictionCard";
 import PlacedBetCard from "./bets/PlacedBetCard";
 import { usePlacedBets } from "@/hooks/usePlacedBets";
@@ -43,98 +36,41 @@ const AgentPill = ({ agent, selected, onClick }: { agent: Agent; selected: boole
   </button>
 );
 
-// ─── Skeleton card ────────────────────────────────────────────────────────────
+// ─── Demo suggestions — one per agent, different markets, all actionable ─────
 
-const SkeletonCard = ({ index }: { index: number }) => (
-  <motion.div
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    transition={{ delay: index * 0.05 }}
-    className="rounded-lg bg-card border border-border p-4 space-y-3 animate-pulse"
-  >
-    <div className="space-y-2">
-      <div className="h-4 bg-muted rounded w-3/4" />
-      <div className="h-3 bg-muted rounded w-1/2" />
-    </div>
-    <div className="grid grid-cols-3 gap-3">
-      {[0,1,2].map(i => <div key={i} className="h-8 bg-muted rounded" />)}
-    </div>
-    <div className="h-1.5 bg-muted rounded-full" />
-    <div className="h-3 bg-muted rounded w-full" />
-    <div className="h-3 bg-muted rounded w-4/5" />
-  </motion.div>
-);
-
-// ─── Best bet per agent (picked from multiple markets) ────────────────────────
-
-interface BestBet {
+interface DemoBet {
   prediction: AgentPrediction;
   market: LiveMarket;
 }
 
-/** Position priority: YES/NO > WAIT > NO_EDGE > PASS */
-function positionPriority(pos: string): number {
-  if (pos === "YES" || pos === "NO") return 4;
-  if (pos === "WAIT") return 3;
-  if (pos === "NO_EDGE") return 2;
-  if (pos === "PASS") return 1;
-  return 0;
-}
-
-function pickBestPerAgent(results: PredictionResult[]): BestBet[] {
-  // Collect ALL non-SKIP candidates per agent
-  const candidates = new Map<string, { prediction: AgentPrediction; market: LiveMarket }[]>();
-
-  for (const r of results) {
-    for (const p of r.predictions) {
-      if (p.position === "SKIP" || p.position === "ERROR") continue;
-      const list = candidates.get(p.agentId) ?? [];
-      list.push({ prediction: p, market: r.market });
-      candidates.set(p.agentId, list);
-    }
-  }
-
-  // Sort each agent's candidates: highest priority position, then confidence
-  for (const [, list] of candidates) {
-    list.sort((a, b) => {
-      const priDiff = positionPriority(b.prediction.position) - positionPriority(a.prediction.position);
-      if (priDiff !== 0) return priDiff;
-      return (b.prediction.confidence ?? 0) - (a.prediction.confidence ?? 0);
-    });
-  }
-
-  // Greedily assign: most-constrained agents first, prefer unused markets
-  const bestMap = new Map<string, BestBet>();
-  const usedMarkets = new Set<string>();
-  const agentIds = Array.from(candidates.keys()).sort(
-    (a, b) => (candidates.get(a)?.length ?? 0) - (candidates.get(b)?.length ?? 0)
-  );
-
-  for (const agentId of agentIds) {
-    const list = candidates.get(agentId) ?? [];
-    const unusedPick = list.find((c) => !usedMarkets.has(c.market.slug));
-    const pick = unusedPick ?? list[0];
-    if (pick) {
-      bestMap.set(agentId, pick);
-      usedMarkets.add(pick.market.slug);
-    }
-  }
-
-  return Array.from(bestMap.values());
-}
+const DEMO_BETS: DemoBet[] = [
+  {
+    market: { id: "demo-1", slug: "fed-rate-cut-march-2026", question: "Will the Fed cut rates in March 2026?", category: "Macro", endDate: "2026-03-31", daysToResolution: 30, liquidity: 4200000, volume24h: 8500000, volume7d: 22000000, yesPrice: 0.42, noPrice: 0.58, crowdConfidence: 0.42, isLongShot: false, isFavorite: false, isContested: true, image: null },
+    prediction: { agentId: "contrarian", agentName: "THE CONTRARIAN", agentEmoji: "🔄", riskTolerance: "medium", marketId: "demo-1", marketQuestion: "Will the Fed cut rates in March 2026?", position: "NO", confidence: 0.78, timestamp: new Date().toISOString(), crowdError: "Market is pricing in a cut at 42%, but core services inflation remains sticky at 3.1%. The Fed's own dot plot doesn't support this timeline. Public sentiment is ahead of the data.", suggestedSize: "medium", warning: "CPI release on March 12 could swing this ±15pp. Size accordingly." },
+  },
+  {
+    market: { id: "demo-2", slug: "btc-above-150k-june-2026", question: "BTC above $150K by June 2026?", category: "Crypto", endDate: "2026-06-30", daysToResolution: 121, liquidity: 6800000, volume24h: 12000000, volume7d: 31000000, yesPrice: 0.31, noPrice: 0.69, crowdConfidence: 0.31, isLongShot: false, isFavorite: false, isContested: false, image: null },
+    prediction: { agentId: "momentum", agentName: "THE MOMENTUM RIDER", agentEmoji: "⚡", riskTolerance: "high", marketId: "demo-2", marketQuestion: "BTC above $150K by June 2026?", position: "YES", confidence: 0.72, timestamp: new Date().toISOString(), thesis: "ETF inflows just hit a record $2.1B. On-chain accumulation is accelerating post-halving. This is the kind of momentum signal you ride. Entry at 31¢ is a steal if flow continues even 50% of pace.", momentumSignal: "STRONG", entryTiming: "NOW", suggestedSize: "large" },
+  },
+  {
+    market: { id: "demo-3", slug: "openai-ipo-2026", question: "OpenAI IPO in 2026?", category: "Tech", endDate: "2026-12-31", daysToResolution: 305, liquidity: 3100000, volume24h: 4200000, volume7d: 15000000, yesPrice: 0.55, noPrice: 0.45, crowdConfidence: 0.55, isLongShot: false, isFavorite: true, isContested: true, image: null },
+    prediction: { agentId: "fundamentalist", agentName: "THE FUNDAMENTALIST", agentEmoji: "📊", riskTolerance: "low", marketId: "demo-3", marketQuestion: "OpenAI IPO in 2026?", position: "YES", confidence: 0.85, timestamp: new Date().toISOString(), fairValue: 0.72, edge: 0.17, keyFactors: ["Revenue run-rate exceeds $15B", "Board restructuring toward for-profit complete", "GPT-6 announcement confirms product velocity", "55¢ price understates probability given fundamentals"], suggestedSize: "medium" },
+  },
+  {
+    market: { id: "demo-4", slug: "eu-mica-regulation-2026", question: "EU MiCA regulation fully enforced by 2026?", category: "Crypto", endDate: "2026-12-31", daysToResolution: 305, liquidity: 1800000, volume24h: 2100000, volume7d: 8500000, yesPrice: 0.82, noPrice: 0.18, crowdConfidence: 0.82, isLongShot: false, isFavorite: true, isContested: false, image: null },
+    prediction: { agentId: "scalper", agentName: "THE SCALPER", agentEmoji: "🎯", riskTolerance: "medium", marketId: "demo-4", marketQuestion: "EU MiCA regulation fully enforced by 2026?", position: "YES", confidence: 0.88, timestamp: new Date().toISOString(), edgePct: 6.2, entryPrice: 0.82, targetExit: 0.91, suggestedSize: "small" },
+  },
+  {
+    market: { id: "demo-5", slug: "spacex-mars-mission-2030", question: "SpaceX Mars mission by 2030?", category: "Science", endDate: "2030-12-31", daysToResolution: 1766, liquidity: 5500000, volume24h: 3800000, volume7d: 12000000, yesPrice: 0.08, noPrice: 0.92, crowdConfidence: 0.08, isLongShot: true, isFavorite: false, isContested: false, image: null },
+    prediction: { agentId: "degenerate", agentName: "THE DEGENERATE", agentEmoji: "🚀", riskTolerance: "extreme", marketId: "demo-5", marketQuestion: "SpaceX Mars mission by 2030?", position: "YES", confidence: 0.31, timestamp: new Date().toISOString(), thesis: "Five successful Starship landings in a row. At 8 cents this is a lottery ticket with real edge. If they announce the crewed mission roadmap this year, this reprices to 25¢+ overnight. LFG.", moonFactor: 8, impliedOdds: "12:1", catalysts: ["Starship crewed mission roadmap announcement", "NASA contract expansion", "Successful orbital refueling demo"], suggestedSize: "small" },
+  },
+];
 
 // ─── Main tab ─────────────────────────────────────────────────────────────────
 
 const SuggestedBetsTab = () => {
   const { bets: placedBets, placeBet, clearBets } = usePlacedBets();
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
-  const [selectedMarket, setSelectedMarket] = useState<LiveMarket | null>(null);
-  const [singleResult, setSingleResult] = useState<PredictionResult | null>(null);
-  const [bestBets, setBestBets] = useState<BestBet[]>([]);
-  const [isLoadingPrediction, setIsLoadingPrediction] = useState(false);
-  const [isLoadingBestBets, setIsLoadingBestBets] = useState(false);
-  const [showMarketSearch, setShowMarketSearch] = useState(false);
-  const [apiOnline, setApiOnline] = useState<boolean | null>(null);
   const [theses, setTheses] = useState<Record<string, string>>(() => {
     const saved = localStorage.getItem("clawbot-theses");
     if (saved) return JSON.parse(saved);
@@ -149,65 +85,15 @@ const SuggestedBetsTab = () => {
     });
   };
 
-  // Check API on mount
-  useEffect(() => {
-    clawbotApi.health()
-      .then(() => setApiOnline(true))
-      .catch(() => setApiOnline(false));
-  }, []);
-
-  // Auto-load best bets across multiple markets on mount
-  useEffect(() => {
-    if (apiOnline !== true) return;
-    loadBestBets();
-  }, [apiOnline]);
-
-  const loadBestBets = async () => {
-    setIsLoadingBestBets(true);
-    try {
-      const trending = await clawbotApi.getTrendingMarkets(5);
-      const results = await Promise.allSettled(
-        trending.map((m) => clawbotApi.predict(m.slug))
-      );
-      const fulfilled = results
-        .filter((r): r is PromiseFulfilledResult<PredictionResult> => r.status === "fulfilled")
-        .map((r) => r.value);
-      setBestBets(pickBestPerAgent(fulfilled));
-    } catch (e) {
-      console.error("Failed to load best bets:", e);
-    } finally {
-      setIsLoadingBestBets(false);
-    }
-  };
-
-  const handleSelectMarket = async (market: LiveMarket) => {
-    setSelectedMarket(market);
-    setShowMarketSearch(false);
-    setIsLoadingPrediction(true);
-    setSingleResult(null);
-    try {
-      const data = await clawbotApi.predict(market.slug);
-      setSingleResult(data);
-    } catch (e) {
-      console.error("Prediction failed:", e);
-    } finally {
-      setIsLoadingPrediction(false);
-    }
-  };
-
   const activeAgent = AGENTS.find((a) => a.id === selectedAgent);
 
-  // When an agent is selected and a specific market is loaded, filter that agent's predictions
-  const singleMarketPredictions = singleResult?.predictions ?? [];
-  const filteredPredictions = selectedAgent
-    ? singleMarketPredictions.filter((p) => {
-        const backendId = selectedAgent === "degen" ? "degenerate" : selectedAgent;
-        return p.agentId === backendId;
+  // Filter demo bets by selected agent
+  const filteredBets = selectedAgent
+    ? DEMO_BETS.filter((db) => {
+        const frontendId = db.prediction.agentId === "degenerate" ? "degen" : db.prediction.agentId;
+        return frontendId === selectedAgent;
       })
-    : singleMarketPredictions;
-
-  // Determine view mode: if no agent selected and no specific market chosen → show best bets
-  const showBestBetsView = !selectedAgent && !selectedMarket;
+    : DEMO_BETS;
 
   return (
     <div className="space-y-4">
@@ -219,15 +105,7 @@ const SuggestedBetsTab = () => {
               key={agent.id}
               agent={agent}
               selected={selectedAgent === agent.id}
-              onClick={() => {
-                if (selectedAgent === agent.id) {
-                  setSelectedAgent(null);
-                  setSelectedMarket(null);
-                  setSingleResult(null);
-                } else {
-                  setSelectedAgent(agent.id);
-                }
-              }}
+              onClick={() => setSelectedAgent(selectedAgent === agent.id ? null : agent.id)}
             />
           ))}
         </div>
@@ -251,149 +129,31 @@ const SuggestedBetsTab = () => {
         </div>
       )}
 
-      {/* Market selector — only when an agent is selected */}
-      {selectedAgent && (
-        <>
-          <div className="flex items-center justify-between gap-2">
-            <button
-              onClick={() => setShowMarketSearch(!showMarketSearch)}
-              className="flex-1 text-left rounded-lg bg-card border border-border px-3 py-2 hover:border-primary/50 transition-colors"
-            >
-              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
-                Live Market
-              </div>
-              <div className="text-xs font-display font-medium line-clamp-1 mt-0.5">
-                {selectedMarket ? selectedMarket.question : "Select a market..."}
-              </div>
-            </button>
-
-            <div className="flex items-center gap-2 shrink-0">
-              {apiOnline === true && (
-                <div className="flex items-center gap-1 text-[10px] font-mono text-confidence-high">
-                  <Wifi className="w-3 h-3" />
-                  <span>LIVE</span>
-                </div>
-              )}
-              {apiOnline === false && (
-                <div className="flex items-center gap-1 text-[10px] font-mono text-destructive">
-                  <WifiOff className="w-3 h-3" />
-                  <span>OFFLINE</span>
-                </div>
-              )}
-              {singleResult && !isLoadingPrediction && (
-                <button
-                  onClick={() => selectedMarket && handleSelectMarket(selectedMarket)}
-                  className="p-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
-                  title="Refresh predictions"
-                >
-                  <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          <AnimatePresence>
-            {showMarketSearch && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="rounded-lg bg-card border border-border p-3">
-                  <MarketSelector
-                    selectedSlug={selectedMarket?.slug ?? null}
-                    onSelect={handleSelectMarket}
-                  />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </>
-      )}
-
-      {/* Loading state */}
-      {(isLoadingPrediction || isLoadingBestBets) && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
-          <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
-          <span>{isLoadingBestBets ? "Scanning markets for each agent's best bet..." : "Running agents..."}</span>
+      {/* Suggested bets header */}
+      <div className="flex items-center justify-between">
+        <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
+          {selectedAgent ? `${activeAgent?.name}'s Pick` : "Each Agent's Best Pick"}
         </div>
-      )}
+      </div>
 
-      {/* ── BEST BETS VIEW (no agent selected, no market selected) ── */}
-      {showBestBetsView && !isLoadingBestBets && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
-              Each Agent's Best Pick
-            </div>
-            <div className="flex items-center gap-2">
-              {apiOnline === true && (
-                <div className="flex items-center gap-1 text-[10px] font-mono text-confidence-high">
-                  <Wifi className="w-3 h-3" />
-                  <span>LIVE</span>
-                </div>
-              )}
-              <button
-                onClick={loadBestBets}
-                className="p-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
-                title="Refresh best bets"
-              >
-                <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />
-              </button>
-            </div>
-          </div>
-          {bestBets.length === 0 ? (
-            <div className="text-center text-muted-foreground text-sm py-8">
-              No active bets found — try refreshing
-            </div>
-          ) : (
-            bestBets.map((bb, i) => {
-              const frontendId = bb.prediction.agentId === "degenerate" ? "degen" : bb.prediction.agentId;
-              const agentData = AGENTS.find((a) => a.id === frontendId);
-              return (
-                <LivePredictionCard
-                  key={bb.prediction.agentId}
-                  prediction={bb.prediction}
-                  agentData={agentData}
-                  index={i}
-                  market={bb.market}
-                  showMarketName
-                  onBetPlaced={(m, p) => placeBet(m, p)}
-                />
-              );
-            })
-          )}
-        </div>
-      )}
-
-      {/* ── SINGLE MARKET VIEW (agent selected) ── */}
-      {!showBestBetsView && !isLoadingPrediction && (
-        <div className="space-y-3">
-          {filteredPredictions.length === 0 ? (
-            <div className="text-center text-muted-foreground text-sm py-8">
-              {selectedMarket
-                ? "No predictions yet — try refreshing"
-                : "Select a market above to get predictions"}
-            </div>
-          ) : (
-            filteredPredictions.map((p, i) => {
-              const frontendId = p.agentId === "degenerate" ? "degen" : p.agentId;
-              const agentData = AGENTS.find((a) => a.id === frontendId);
-              return (
-                <LivePredictionCard
-                  key={p.agentId}
-                  prediction={p}
-                  agentData={agentData}
-                  index={i}
-                  market={selectedMarket}
-                  onBetPlaced={(m, pred) => placeBet(m, pred)}
-                />
-              );
-            })
-          )}
-        </div>
-      )}
+      {/* Suggestion cards — all have BET buttons */}
+      <div className="space-y-3">
+        {filteredBets.map((db, i) => {
+          const frontendId = db.prediction.agentId === "degenerate" ? "degen" : db.prediction.agentId;
+          const agentData = AGENTS.find((a) => a.id === frontendId);
+          return (
+            <LivePredictionCard
+              key={db.prediction.agentId}
+              prediction={db.prediction}
+              agentData={agentData}
+              index={i}
+              market={db.market}
+              showMarketName
+              onBetPlaced={(m, p) => placeBet(m, p)}
+            />
+          );
+        })}
+      </div>
 
       {/* ── PLACED BETS ── */}
       {placedBets.length > 0 && (
