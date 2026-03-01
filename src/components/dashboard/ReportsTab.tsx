@@ -92,7 +92,7 @@ const ReportsTab = () => {
           { label: "Bets Made", value: `${report.totalBets}` },
           { label: "Bets Won", value: `${report.totalWins}` },
           { label: "Win %", value: `${report.winRate}%` },
-          { label: "Best Agent", value: report.bestAgent ? `${report.bestAgent.icon}` : "—" },
+          { label: "Best Agent", value: report.bestAgent ? report.bestAgent.name : "—" },
         ].map((stat) => (
           <div key={stat.label} className="p-3 rounded-lg bg-card border border-border text-center">
             <div className="text-[10px] font-mono text-muted-foreground uppercase">{stat.label}</div>
