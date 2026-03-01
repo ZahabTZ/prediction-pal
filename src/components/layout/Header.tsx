@@ -1,13 +1,20 @@
 import { useState, useRef, useEffect } from "react";
-import { Bot, Settings, Bell, ChevronDown } from "lucide-react";
+import { Bot, Settings, Bell, ChevronDown, RotateCcw } from "lucide-react";
 import { AUTONOMY_LABELS } from "@/data/mockData";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface HeaderProps {
   autonomy: number;
   onAutonomyChange: (val: number) => void;
+  onOpenOnboarding?: () => void;
 }
 
-const Header = ({ autonomy, onAutonomyChange }: HeaderProps) => {
+const Header = ({ autonomy, onAutonomyChange, onOpenOnboarding }: HeaderProps) => {
   const [showAutonomy, setShowAutonomy] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -88,9 +95,19 @@ const Header = ({ autonomy, onAutonomyChange }: HeaderProps) => {
       <button className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
         <Bell className="w-4 h-4" />
       </button>
-      <button className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
-        <Settings className="w-4 h-4" />
-      </button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+            <Settings className="w-4 h-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem onClick={onOpenOnboarding} className="gap-2 cursor-pointer">
+            <RotateCcw className="w-4 h-4" />
+            Rerun Onboarding
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </header>
   );
 };
