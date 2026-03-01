@@ -12,6 +12,9 @@ const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [selectedNiches, setSelectedNiches] = useState<string[]>([]);
   const [selectedAgents, setSelectedAgents] = useState<string[]>(["contrarian", "fundamentalist"]);
   const [maxBet, setMaxBet] = useState(250);
+  const [chatId, setChatId] = useState("");
+  const [agentId, setAgentId] = useState("");
+  const [walletConnected, setWalletConnected] = useState(false);
 
   const toggleNiche = (niche: string) => {
     setSelectedNiches((prev) =>
@@ -73,41 +76,58 @@ const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-primary/10 border border-primary/20 glow-primary">
                 <Bot className="w-10 h-10 text-primary" />
               </div>
-              <h1 className="text-4xl font-display font-bold tracking-tight">
-                CLAW<span className="text-primary text-glow">BOT</span>
-              </h1>
-              <p className="text-muted-foreground text-lg max-w-sm mx-auto">
-                Your AI-powered prediction market agent. Read signals. Place bets. Detect arbitrage.
-              </p>
-            </div>
+               <h1 className="text-4xl font-display font-bold tracking-tight">
+                 PREDICTIVE <span className="text-primary text-glow">CLAW</span>
+               </h1>
+               <p className="text-muted-foreground text-lg max-w-sm mx-auto">
+                 Your AI-powered prediction market agent. Read signals. Place bets. Detect arbitrage.
+               </p>
+             </div>
           )}
 
           {step === 1 && (
             <div className="space-y-6">
               <div className="text-center space-y-2">
                 <Shield className="w-8 h-8 text-primary mx-auto" />
-                <h2 className="text-2xl font-display font-bold">Connect Accounts</h2>
-                <p className="text-sm text-muted-foreground">Optional for MVP — credentials stored locally only</p>
+                <h2 className="text-2xl font-display font-bold">Setup</h2>
+                <p className="text-sm text-muted-foreground">Connect your accounts and configure your bot</p>
               </div>
-              <div className="space-y-4">
-                {["Polymarket", "Kalshi"].map((platform) => (
-                  <div key={platform} className="p-4 rounded-lg bg-card border border-border space-y-3">
-                    <h3 className="font-display font-semibold text-sm">{platform}</h3>
-                    <input
-                      type="password"
-                      placeholder="API Key"
-                      className="w-full px-3 py-2 rounded-md bg-muted border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                    <input
-                      type="password"
-                      placeholder={platform === "Polymarket" ? "CLOB Private Key" : "Secret Key"}
-                      className="w-full px-3 py-2 rounded-md bg-muted border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                ))}
-                <p className="text-xs text-muted-foreground text-center">
-                  🔒 Keys are encrypted and stored in local storage only. Skip for now to explore with mock data.
+
+              {/* Step 1: Connect wallet & Polymarket */}
+              <div className="p-4 rounded-lg bg-card border border-border space-y-3">
+                <h3 className="font-display font-semibold text-sm">1. Connect Wallet & Polymarket</h3>
+                <p className="text-xs text-muted-foreground">
+                  Connect your Clawbot to your wallet and Polymarket account, then click Done.
                 </p>
+                <button
+                  onClick={() => setWalletConnected(true)}
+                  className={`w-full py-2 rounded-md text-sm font-semibold transition-all ${
+                    walletConnected
+                      ? "bg-confidence-high/15 text-confidence-high border border-confidence-high/30"
+                      : "bg-primary text-primary-foreground hover:brightness-110"
+                  }`}
+                >
+                  {walletConnected ? "✓ Connected" : "Done"}
+                </button>
+              </div>
+
+              {/* Step 2: Chat ID & Agent ID */}
+              <div className={`p-4 rounded-lg bg-card border border-border space-y-3 transition-opacity ${walletConnected ? "opacity-100" : "opacity-40 pointer-events-none"}`}>
+                <h3 className="font-display font-semibold text-sm">2. Enter Bot Details</h3>
+                <input
+                  type="text"
+                  placeholder="Chat ID"
+                  value={chatId}
+                  onChange={(e) => setChatId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-md bg-muted border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <input
+                  type="text"
+                  placeholder="Agent ID"
+                  value={agentId}
+                  onChange={(e) => setAgentId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-md bg-muted border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
               </div>
             </div>
           )}
